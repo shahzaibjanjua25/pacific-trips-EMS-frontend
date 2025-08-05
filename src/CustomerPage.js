@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import './customer.css';
 import {
   Container, Typography, TextField, Button, Select, MenuItem,
-  Table, TableHead, TableRow, TableCell, TableBody, Dialog, DialogTitle,
-  DialogContent, DialogActions, Grid, InputLabel, FormControl, Box
+  TableContainer, Table, TableHead, TableRow, TableCell, TableBody, 
+  Dialog, DialogTitle, DialogContent, DialogActions, Grid, 
+  InputLabel, FormControl, Box, Paper, Alert, Snackbar, Chip
 } from '@mui/material';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { Add, Search, Refresh, Delete, Edit } from '@mui/icons-material';
 
 function CustomerPage() {
   const [customers, setCustomers] = useState([]);
@@ -18,8 +19,8 @@ function CustomerPage() {
     toDate: null
   });
   const [formData, setFormData] = useState({
-    customerId: '',
     customerName: '',
+    phone: '',
     source: 'Other',
     currentLocation: '',
     desiredDestination: ''
@@ -28,35 +29,8 @@ function CustomerPage() {
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
 
-  const fetchCustomers = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams();
-
-      if (filters.search) params.append('search', filters.search);
-      if (filters.source) params.append('source', filters.source);
-      if (filters.fromDate) params.append('fromDate', filters.fromDate.toISOString());
-      if (filters.toDate) params.append('toDate', filters.toDate.toISOString());
-
-      const response = await fetch(`http://localhost:5000/api/customers?${params.toString()}`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      if (data.success) {
-        setCustomers(data.data);
-      } else {
-        throw new Error(data.message || 'Failed to fetch customers');
-      }
-    } catch (err) {
-      setError(err.message);
-      console.error('Error fetching customers:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
   const getSourceColor = (source) => {
     const colors = {
       'Facebook': '#4267B2',
@@ -67,64 +41,116 @@ function CustomerPage() {
     };
     return colors[source] || '#808080';
   };
-  useEffect(() => {
-    fetchCustomers();
-  }, [filters]);
 
-  const resetFilters = () => {
-    setFilters({
-      search: '',
-      source: '',
-      fromDate: null,
-      toDate: null
-    });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const fetchCustomers = async () => {
     setLoading(true);
     setError(null);
     try {
-      const url = editingId
-        ? `http://localhost:5000/api/customers/${editingId}`
-        : 'http://localhost:5000/api/customers';
+      const params = new URLSearchParams();
+      if (filters.search) params.append('search', filters.search);
+      if (filters.source) params.append('source', filters.source);
+      if (filters.fromDate) params.append('fromDate', format(filters.fromDate, 'yyyy-MM-dd'));
+      if (filters.toDate) params.append('toDate', format(filters.toDate, 'yyyy-MM-dd'));
 
-      const method = editingId ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(formData)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Request failed');
-      }
-
+      const response = await fetch(`http://localhost:5000/api/customers?${params.toString()}`);
+      if (!response.ok) throw new Error('Failed to fetch customers');
+      
       const data = await response.json();
       if (data.success) {
-        fetchCustomers();
-        setOpenDialog(false);
-        setEditingId(null);
+        setCustomers(data.data);
+      } else {
+        throw new Error(data.message || 'Failed to fetch customers');
       }
     } catch (err) {
-      setError(err.message);
-      console.error('Error submitting customer:', err);
+      showError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    fetchCustomers();
+  }, [filters]);
+
+  const showError = (message) => {
+    setError(message);
+    setSnackbarOpen(true);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    // Validate all mandatory fields
+    if (!formData.customerName.trim()) {
+      showError('Customer name is required');
+      setLoading(false);
+      return;
+    }
+
+    if (!formData.phone.trim()) {
+      showError('Phone number is required');
+      setLoading(false);
+      return;
+    }
+
+    if (!/^\d{10,15}$/.test(formData.phone)) {
+      showError('Phone number must be 10-15 digits');
+      setLoading(false);
+      return;
+    }
+
+    if (!formData.currentLocation.trim()) {
+      showError('Current location is required');
+      setLoading(false);
+      return;
+    }
+
+    if (!formData.desiredDestination.trim()) {
+      showError('Desired destination is required');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const url = editingId 
+        ? `http://localhost:5000/api/customers/${editingId}`
+        : 'http://localhost:5000/api/customers';
+
+      const method = editingId ? 'PUT' : 'POST';
+      const payload = editingId ? formData : { ...formData, customerId: generateCustomerId() };
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Request failed');
+
+      fetchCustomers();
+      setOpenDialog(false);
+      setEditingId(null);
+      resetForm();
+    } catch (err) {
+      showError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const generateCustomerId = () => {
+    return 'CUST-' + Date.now().toString().slice(-6);
+  };
+
   const handleEdit = (customer) => {
     setFormData({
-      customerId: customer.customerId,
       customerName: customer.customerName,
+      phone: customer.phone,
       source: customer.source,
-      currentLocation: customer.currentLocation || '',
-      desiredDestination: customer.desiredDestination || ''
+      currentLocation: customer.currentLocation,
+      desiredDestination: customer.desiredDestination
     });
     setEditingId(customer._id);
     setOpenDialog(true);
@@ -137,281 +163,270 @@ function CustomerPage() {
           method: 'DELETE'
         });
 
-        if (!response.ok) {
-          throw new Error('Failed to delete customer');
-        }
-
+        if (!response.ok) throw new Error('Failed to delete customer');
+        
         fetchCustomers();
       } catch (err) {
-        setError(err.message);
-        console.error('Error deleting customer:', err);
+        showError(err.message);
       }
     }
   };
 
   const resetForm = () => {
     setFormData({
-      customerId: '',
       customerName: '',
+      phone: '',
       source: 'Other',
       currentLocation: '',
       desiredDestination: ''
     });
-    setEditingId(null);
+  };
+
+  const resetFilters = () => {
+    setFilters({
+      search: '',
+      source: '',
+      fromDate: null,
+      toDate: null
+    });
   };
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
-      <div className="customer-container">
-        <Typography variant="h4" className="customer-header">
-          Customer Management
-        </Typography>
-
-        {/* Error display */}
-        {error && (
-          <div className="error-state">
+      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+        {/* Error Snackbar */}
+        <Snackbar
+          open={snackbarOpen}
+          autoHideDuration={6000}
+          onClose={() => setSnackbarOpen(false)}
+          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        >
+          <Alert severity="error" onClose={() => setSnackbarOpen(false)} sx={{ width: '100%' }}>
             {error}
-          </div>
-        )}
+          </Alert>
+        </Snackbar>
 
-        {/* Filters */}
-        <div className="filter-section">
-          <div className="filter-row">
-            <TextField
-              label="Search"
-              value={filters.search}
-              onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-              size="small"
-              sx={{ minWidth: 200 }}
-            />
+        {/* Header and Filters */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+          <Typography variant="h4" component="h1">
+            Customer Management
+          </Typography>
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => {
+              resetForm();
+              setOpenDialog(true);
+            }}
+          >
+            Add Customer
+          </Button>
+        </Box>
 
-            <FormControl size="small" sx={{ minWidth: 120 }}>
-              <InputLabel>Source</InputLabel>
-              <Select
-                value={filters.source}
-                onChange={(e) => setFilters({ ...filters, source: e.target.value })}
-                label="Source"
-              >
-                <MenuItem value="">All</MenuItem>
-                <MenuItem value="Facebook">Facebook</MenuItem>
-                <MenuItem value="WhatsApp">WhatsApp</MenuItem>
-                <MenuItem value="TikTok">TikTok</MenuItem>
-                <MenuItem value="Reference">Reference</MenuItem>
-                <MenuItem value="Other">Other</MenuItem>
-              </Select>
-            </FormControl>
+        {/* Filter Controls */}
+        <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
+          <TextField
+            label="Search"
+            variant="outlined"
+            size="small"
+            value={filters.search}
+            onChange={(e) => setFilters({...filters, search: e.target.value})}
+            InputProps={{
+              startAdornment: <Search color="action" sx={{ mr: 1 }} />
+            }}
+            sx={{ minWidth: 200 }}
+          />
 
-            <DatePicker
-              label="From"
-              value={filters.fromDate}
-              onChange={(date) => setFilters({ ...filters, fromDate: date })}
-              renderInput={(params) => <TextField {...params} size="small" sx={{ width: 180 }} />}
-            />
-
-            <DatePicker
-              label="To"
-              value={filters.toDate}
-              onChange={(date) => setFilters({ ...filters, toDate: date })}
-              renderInput={(params) => <TextField {...params} size="small" sx={{ width: 180 }} />}
-            />
-
-            <Button
-              onClick={resetFilters}
-              variant="outlined"
-              color="secondary"
-              disabled={loading}
-              sx={{ height: '40px' }}
+          <FormControl size="small" sx={{ minWidth: 120 }}>
+            <InputLabel>Source</InputLabel>
+            <Select
+              value={filters.source}
+              onChange={(e) => setFilters({...filters, source: e.target.value})}
+              label="Source"
             >
-              Reset Filters
-            </Button>
+              <MenuItem value="">All</MenuItem>
+              <MenuItem value="Facebook">Facebook</MenuItem>
+              <MenuItem value="WhatsApp">WhatsApp</MenuItem>
+              <MenuItem value="TikTok">TikTok</MenuItem>
+              <MenuItem value="Reference">Reference</MenuItem>
+              <MenuItem value="Other">Other</MenuItem>
+            </Select>
+          </FormControl>
 
-            <Button
-              onClick={() => {
-                resetForm();
-                setOpenDialog(true);
-              }}
-              variant="contained"
-              disabled={loading}
-              sx={{ height: '40px' }}
-            >
-              Add Customer
-            </Button>
-          </div>
-        </div>
+          <DatePicker
+            label="From Date"
+            value={filters.fromDate}
+            onChange={(newValue) => setFilters({...filters, fromDate: newValue})}
+            renderInput={(params) => <TextField {...params} size="small" sx={{ width: 180 }} />}
+          />
 
-        {/* Table */}
-        {loading ? (
-          <div className="loading-state">
-            Loading...
-          </div>
-        ) : customers.length === 0 ? (
-          <div className="empty-state">
-            No customers found
-          </div>
-        ) : (
-          <Table className="customer-table">
+          <DatePicker
+            label="To Date"
+            value={filters.toDate}
+            onChange={(newValue) => setFilters({...filters, toDate: newValue})}
+            renderInput={(params) => <TextField {...params} size="small" sx={{ width: 180 }} />}
+          />
+
+          <Button
+            variant="outlined"
+            startIcon={<Refresh />}
+            onClick={resetFilters}
+            sx={{ height: 40 }}
+          >
+            Reset
+          </Button>
+        </Box>
+
+        {/* Customer Table */}
+        <TableContainer component={Paper}>
+          <Table>
             <TableHead>
               <TableRow>
-                <TableCell>ID</TableCell>
                 <TableCell>Name</TableCell>
+                <TableCell>Phone</TableCell>
                 <TableCell>Source</TableCell>
                 <TableCell>Current Location</TableCell>
                 <TableCell>Desired Destination</TableCell>
-                <TableCell>Arrival Date</TableCell>
                 <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {customers.map(c => (
-                <TableRow key={c._id} hover>
-                  <TableCell>{c.customerId}</TableCell>
-                  <TableCell>{c.customerName}</TableCell>
-                  <TableCell>
-                    <Box
-                      sx={{
-                        backgroundColor: getSourceColor(c.source),
-                        color: 'white',
-                        borderRadius: '16px',
-                        padding: '4px 12px',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        minWidth: '80px',
-                        fontSize: '0.8125rem',
-                        fontWeight: 500
-                      }}
-                    >
-                      {c.source}
-                    </Box>
-                  </TableCell>
-                  <TableCell>{c.currentLocation || '-'}</TableCell>
-                  <TableCell>{c.desiredDestination || '-'}</TableCell>
-                  <TableCell>{new Date(c.dateOfArrival).toLocaleDateString()}</TableCell>
-                  <TableCell>
-                    <div className="action-buttons">
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={6} align="center">Loading...</TableCell>
+                </TableRow>
+              ) : customers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} align="center">No customers found</TableCell>
+                </TableRow>
+              ) : (
+                customers.map((customer) => (
+                  <TableRow key={customer._id}>
+                    <TableCell>{customer.customerName}</TableCell>
+                    <TableCell>{customer.phone}</TableCell>
+                    <TableCell>
+                      <Chip
+                        label={customer.source}
+                        sx={{ 
+                          backgroundColor: getSourceColor(customer.source),
+                          color: 'white',
+                          minWidth: 100
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell>{customer.currentLocation}</TableCell>
+                    <TableCell>{customer.desiredDestination}</TableCell>
+                    <TableCell>
                       <Button
                         size="small"
-                        onClick={() => handleEdit(c)}
-                        disabled={loading}
+                        startIcon={<Edit />}
+                        onClick={() => handleEdit(customer)}
+                        sx={{ mr: 1 }}
                       >
                         Edit
                       </Button>
                       <Button
                         size="small"
+                        startIcon={<Delete />}
+                        onClick={() => handleDelete(customer._id)}
                         color="error"
-                        onClick={() => handleDelete(c._id)}
-                        disabled={loading}
                       >
                         Delete
                       </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
-        )}
+        </TableContainer>
 
         {/* Customer Form Dialog */}
-        <Dialog
-          open={openDialog}
-          onClose={() => {
-            setOpenDialog(false);
-            resetForm();
-          }}
-          maxWidth="sm"
-          fullWidth
-          className="customer-dialog"
-        >
-          <DialogTitle className="customer-dialog-title">
-            {editingId ? 'Edit' : 'Add'} Customer
-          </DialogTitle>
-          <DialogContent className="customer-dialog-content">
-            <form onSubmit={handleSubmit} className="customer-form">
-              <Grid container spacing={2} sx={{ mt: 1 }}>
+        <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>{editingId ? 'Edit' : 'Add'} Customer</DialogTitle>
+          <DialogContent>
+            <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
+              <Grid container spacing={2}>
                 <Grid item xs={12}>
                   <TextField
-                    label="Customer ID"
-                    fullWidth
-                    value={formData.customerId}
-                    onChange={(e) => setFormData({ ...formData, customerId: e.target.value })}
-                    margin="normal"
-                    disabled={!!editingId}
-                    required
-                  />
-                </Grid>
-
-                <Grid item xs={12}>
-                  <TextField
-                    label="Customer Name"
+                    label="Full Name *"
                     fullWidth
                     value={formData.customerName}
-                    onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
-                    margin="normal"
+                    onChange={(e) => setFormData({...formData, customerName: e.target.value})}
                     required
+                    error={!formData.customerName.trim()}
+                    helperText={!formData.customerName.trim() ? "Required field" : ""}
                   />
                 </Grid>
-
+                <Grid item xs={12}>
+                  <TextField
+                    label="Phone Number *"
+                    fullWidth
+                    value={formData.phone}
+                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                    inputProps={{ pattern: "[0-9]{10,15}" }}
+                    required
+                    error={!formData.phone.trim() || !/^\d{10,15}$/.test(formData.phone)}
+                    helperText={
+                      !formData.phone.trim() ? "Required field" :
+                      !/^\d{10,15}$/.test(formData.phone) ? "Must be 10-15 digits" : ""
+                    }
+                  />
+                </Grid>
                 <Grid item xs={12} sm={6}>
-                  <FormControl fullWidth margin="normal">
-                    <InputLabel>Source</InputLabel>
+                  <FormControl fullWidth required>
+                    <InputLabel>Source *</InputLabel>
                     <Select
                       value={formData.source}
-                      onChange={(e) => setFormData({ ...formData, source: e.target.value })}
+                      onChange={(e) => setFormData({...formData, source: e.target.value})}
                       label="Source"
-                      required
+                      error={!formData.source}
                     >
                       <MenuItem value="Facebook">Facebook</MenuItem>
                       <MenuItem value="WhatsApp">WhatsApp</MenuItem>
-                      <MenuItem value="Reference">Reference</MenuItem>
                       <MenuItem value="TikTok">TikTok</MenuItem>
+                      <MenuItem value="Reference">Reference</MenuItem>
                       <MenuItem value="Other">Other</MenuItem>
                     </Select>
                   </FormControl>
                 </Grid>
-
                 <Grid item xs={12} sm={6}>
                   <TextField
-                    label="Current Location"
+                    label="Current Location *"
                     fullWidth
                     value={formData.currentLocation}
-                    onChange={(e) => setFormData({ ...formData, currentLocation: e.target.value })}
-                    margin="normal"
+                    onChange={(e) => setFormData({...formData, currentLocation: e.target.value})}
+                    required
+                    error={!formData.currentLocation.trim()}
+                    helperText={!formData.currentLocation.trim() ? "Required field" : ""}
                   />
                 </Grid>
-
                 <Grid item xs={12}>
                   <TextField
-                    label="Desired Destination"
+                    label="Desired Destination *"
                     fullWidth
                     value={formData.desiredDestination}
-                    onChange={(e) => setFormData({ ...formData, desiredDestination: e.target.value })}
-                    margin="normal"
+                    onChange={(e) => setFormData({...formData, desiredDestination: e.target.value})}
+                    required
+                    error={!formData.desiredDestination.trim()}
+                    helperText={!formData.desiredDestination.trim() ? "Required field" : ""}
                   />
                 </Grid>
               </Grid>
-            </form>
+            </Box>
           </DialogContent>
-          <DialogActions className="customer-dialog-actions">
-            <Button
-              onClick={() => {
-                setOpenDialog(false);
-                resetForm();
-              }}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              variant="contained"
+          <DialogActions>
+            <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+            <Button 
+              onClick={handleSubmit} 
+              variant="contained" 
               disabled={loading}
             >
               {loading ? 'Processing...' : 'Save'}
             </Button>
           </DialogActions>
         </Dialog>
-      </div>
+      </Container>
     </LocalizationProvider>
   );
 }
