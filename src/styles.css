@@ -1,0 +1,213 @@
+/* styles.css */
+
+/* Base styles */
+body {
+  margin: 0;
+  font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif;
+  background-color: #f5f7fa;
+}
+
+/* App container */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* App bar */
+.app-bar {
+  background-color: #1976d2;
+  box-shadow: 0px 2px 4px -1px rgba(0,0,0,0.2), 
+              0px 4px 5px 0px rgba(0,0,0,0.14), 
+              0px 1px 10px 0px rgba(0,0,0,0.12);
+}
+
+.app-title {
+  flex-grow: 1;
+  font-weight: 500;
+  color: white;
+}
+
+/* Content container */
+.content-container {
+  padding-top: 80px;
+  padding-bottom: 40px;
+  flex: 1;
+}
+
+/* Paper container */
+.paper-container {
+  padding: 24px;
+  margin-bottom: 24px;
+  border-radius: 8px;
+  box-shadow: 0px 2px 1px -1px rgba(0,0,0,0.1), 
+              0px 1px 1px 0px rgba(0,0,0,0.07), 
+              0px 1px 3px 0px rgba(0,0,0,0.06);
+}
+
+/* Filter container */
+.filter-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.search-field {
+  flex: 1;
+  min-width: 250px;
+}
+
+.add-button {
+  margin-left: auto;
+}
+
+/* Table styles */
+.table-container {
+  margin-top: 16px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.table-header {
+  background-color: #f5f7fa;
+}
+
+.table-header-cell {
+  font-weight: 600;
+  color: #424242;
+  white-space: nowrap;
+}
+
+.table-row:hover {
+  background-color: rgba(25, 118, 210, 0.04);
+}
+
+/* Status chips */
+.status-chip {
+  font-weight: 500;
+  min-width: 80px;
+  justify-content: center;
+}
+
+.status-active {
+  background-color: #4caf50 !important;
+  color: white !important;
+}
+
+.status-inactive {
+  background-color: #f44336 !important;
+  color: white !important;
+}
+
+.status-on-leave {
+  background-color: #ff9800 !important;
+  color: white !important;
+}
+
+.status-terminated {
+  background-color: #607d8b !important;
+  color: white !important;
+}
+
+/* Dialog styles */
+.dialog-paper {
+  border-radius: 12px;
+  padding: 8px;
+}
+
+.dialog-title {
+  background-color: #1976d2;
+  color: white;
+  padding: 16px 24px;
+  font-weight: 500;
+}
+
+.dialog-content {
+  padding: 24px;
+}
+
+.dialog-actions {
+  padding: 16px 24px;
+  border-top: 1px solid #e0e0e0;
+  justify-content: flex-end;
+}
+
+/* Form styles */
+.MuiFormControl-root {
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .content-container {
+    padding-top: 64px;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .filter-container {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .add-button {
+    margin-left: 0;
+    margin-top: 8px;
+  }
+
+  .table-header-cell, 
+  .table-cell {
+    padding: 8px;
+    font-size: 0.8rem;
+  }
+}
+
+/* Loading state */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(25, 118, 210, 0.3);
+  border-radius: 50%;
+  border-top-color: #1976d2;
+  animation: spin 1s ease-in-out infinite;
+  margin-right: 8px;
+}
+
+/* Debug info panel */
+.debug-info-panel {
+  margin-top: 24px;
+  padding: 16px;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+  font-family: monospace;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+/* Button spacing */
+.MuiButton-root {
+  margin-right: 8px;
+}
+
+.MuiButton-root:last-child {
+  margin-right: 0;
+}
+
+/* Date picker adjustments */
+.MuiTextField-root {
+  background-color: white;
+}
+

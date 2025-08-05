@@ -1,0 +1,154 @@
+/* customer.css */
+
+/* Base container styles */
+.customer-container {
+  padding: 24px;
+  background-color: #f5f7fa;
+  min-height: calc(100vh - 64px);
+}
+
+/* Header styles */
+.customer-header {
+  margin-bottom: 24px;
+  color: #1976d2;
+  font-weight: 500;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+/* Filter section styles */
+.filter-section {
+  background-color: white;
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  box-shadow: 0px 2px 1px -1px rgba(0,0,0,0.1), 
+              0px 1px 1px 0px rgba(0,0,0,0.07), 
+              0px 1px 3px 0px rgba(0,0,0,0.06);
+}
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+}
+
+/* Table styles */
+.customer-table {
+  background-color: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0px 2px 1px -1px rgba(0,0,0,0.1), 
+              0px 1px 1px 0px rgba(0,0,0,0.07), 
+              0px 1px 3px 0px rgba(0,0,0,0.06);
+}
+
+.customer-table th {
+  background-color: #f5f7fa;
+  font-weight: 600;
+  color: #424242;
+  white-space: nowrap;
+}
+
+.customer-table tr:hover {
+  background-color: rgba(25, 118, 210, 0.04);
+}
+
+/* Dialog styles */
+.customer-dialog .MuiDialog-paper {
+  border-radius: 12px;
+}
+
+.customer-dialog-title {
+  background-color: #1976d2;
+  color: white;
+  padding: 16px 24px;
+  font-weight: 500;
+}
+
+.customer-dialog-content {
+  padding: 24px;
+}
+
+.customer-dialog-actions {
+  padding: 16px 24px;
+  border-top: 1px solid #e0e0e0;
+  justify-content: flex-end;
+}
+
+/* Form styles */
+.customer-form {
+  margin-top: 8px;
+}
+
+/* Status indicators */
+.status-indicator {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Button spacing */
+.action-buttons button {
+  margin-right: 8px;
+}
+
+.action-buttons button:last-child {
+  margin-right: 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .customer-container {
+    padding: 16px;
+  }
+  
+  .filter-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .customer-table th, 
+  .customer-table td {
+    padding: 8px;
+    font-size: 0.8rem;
+  }
+  
+  .action-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .action-buttons button {
+    margin-right: 0;
+    width: 100%;
+  }
+}
+
+/* Loading state */
+.loading-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+}
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 40px;
+  color: #757575;
+}
+
+/* Error state */
+.error-state {
+  color: #f44336;
+  padding: 16px;
+  background-color: #ffebee;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
