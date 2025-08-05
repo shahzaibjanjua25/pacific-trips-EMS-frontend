@@ -120,6 +120,9 @@ function CustomerPage() {
       const method = editingId ? 'PUT' : 'POST';
       const payload = editingId ? formData : { ...formData, customerId: generateCustomerId() };
 
+      // Debugging: Log the payload being sent
+      console.log('Sending payload:', payload);
+      
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -127,7 +130,13 @@ function CustomerPage() {
       });
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.message || 'Request failed');
+      if (!response.ok) {
+        // Enhanced error message with backend response
+        const errorMsg = data.errors 
+          ? Object.values(data.errors).join(', ') 
+          : data.message || 'Request failed';
+        throw new Error(errorMsg);
+      }
 
       fetchCustomers();
       setOpenDialog(false);
