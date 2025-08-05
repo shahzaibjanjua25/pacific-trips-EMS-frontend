@@ -15,11 +15,6 @@ import {
   TableHead,
   TableRow,
   TableSortLabel,
-  Select,
-  MenuItem,
-  InputLabel,
-  FormControl,
-  Chip,
   AppBar,
   Toolbar,
   Dialog,
@@ -29,7 +24,7 @@ import {
   InputAdornment,
   IconButton
 } from '@mui/material';
-import { Add, Search, Delete, Edit, Refresh, FilterList } from '@mui/icons-material';
+import { Add, Search, Delete, Edit, Refresh } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -38,27 +33,20 @@ import './styles.css';
 function EmployeePage() {
   const [employees, setEmployees] = useState([]);
   const [formData, setFormData] = useState({
-    employeeLeadId: '',
-    employeeId: '',
-    employeeName: '',
-    customerName: '',
-    customerId: '',
-    status: 'Active',
-    source: 'Other'
+    empName: '',
+    phoneNo: '',
+    targetAmount: 0,
+    achievedAmount: 0
   });
   const [filters, setFilters] = useState({
     searchText: '',
-    status: '',
-    source: '',
     fromDate: null,
     toDate: null
   });
-  const [sortConfig, setSortConfig] = useState({ field: 'employeeName', direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState({ field: 'empName', direction: 'asc' });
   const [openDialog, setOpenDialog] = useState(false);
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [debugInfo, setDebugInfo] = useState('');
-
 
   const fetchEmployees = async () => {
     setLoading(true);
@@ -67,47 +55,24 @@ function EmployeePage() {
       const params = new URLSearchParams();
 
       if (filters.searchText) params.append('search', filters.searchText);
-      if (filters.status) params.append('status', filters.status);
-      if (filters.source) params.append('source', filters.source);
       if (filters.fromDate) {
-        params.append('fromDate', format(filters.fromDate, 'yyyy-MM-dd') + 'T00:00:00.000Z');
+        params.append('fromDate', format(filters.fromDate, 'yyyy-MM-dd'));
       }
       if (filters.toDate) {
-        params.append('toDate', format(filters.toDate, 'yyyy-MM-dd') + 'T23:59:59.999Z');
+        params.append('toDate', format(filters.toDate, 'yyyy-MM-dd'));
       }
       if (sortConfig.field) {
         params.append('sortBy', `${sortConfig.direction === 'desc' ? '-' : ''}${sortConfig.field}`);
       }
 
-      // console.log('Fetching with params:', params.toString()); // Debug output
-
       const response = await fetch(url + params.toString());
       const data = await response.json();
-
-      // console.log('Response data:', data); // Debug output
 
       if (data.success) {
         setEmployees(data.data || []);
       } else {
         throw new Error(data.message || 'Failed to fetch employees');
       }
-      const fullUrl = `http://localhost:5000/api/employees?${params.toString()}`;
-    // console.log('Full URL:', fullUrl);
-    
-    // const response = await fetch(fullUrl);
-    // const data = await response.json();
-
-    setDebugInfo(JSON.stringify({
-      url: fullUrl,
-      filters,
-      responseCount: data.count,
-      sortConfig
-    }, null, 2));
-
-    if (data.success) {
-      setEmployees(data.data);
-    }
-  // } catch (error) {
     } catch (error) {
       console.error('Error fetching employees:', error);
       setEmployees([]);
@@ -120,9 +85,7 @@ function EmployeePage() {
   useEffect(() => {
     fetchEmployees();
   }, [filters, sortConfig]);
-useEffect(() => {
-  // console.log('Filters changed:', filters);
-}, [filters]);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData({
@@ -141,8 +104,6 @@ useEffect(() => {
   const resetFilters = () => {
     setFilters({
       searchText: '',
-      status: '',
-      source: '',
       fromDate: null,
       toDate: null
     });
@@ -150,13 +111,10 @@ useEffect(() => {
 
   const handleEdit = (employee) => {
     setFormData({
-      employeeLeadId: employee.employeeLeadId,
-      employeeId: employee.employeeId,
-      employeeName: employee.employeeName,
-      customerName: employee.customerName,
-      customerId: employee.customerId,
-      status: employee.status,
-      source: employee.source
+      empName: employee.empName,
+      phoneNo: employee.phoneNo,
+      targetAmount: employee.targetAmount,
+      achievedAmount: employee.achievedAmount
     });
     setEditingId(employee._id);
     setOpenDialog(true);
@@ -171,12 +129,18 @@ useEffect(() => {
 
       const method = editingId ? 'PUT' : 'POST';
 
+      const payload = {
+        ...formData,
+        targetAmount: Number(formData.targetAmount),
+        achievedAmount: Number(formData.achievedAmount)
+      };
+
       const response = await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
 
       const data = await response.json();
@@ -233,35 +197,11 @@ useEffect(() => {
     setOpenDialog(false);
     setEditingId(null);
     setFormData({
-      employeeLeadId: '',
-      employeeId: '',
-      employeeName: '',
-      customerName: '',
-      customerId: '',
-      status: 'Active',
-      source: 'Other'
+      empName: '',
+      phoneNo: '',
+      targetAmount: 0,
+      achievedAmount: 0
     });
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Active': return 'status-active';
-      case 'Inactive': return 'status-inactive';
-      case 'On Leave': return 'status-on-leave';
-      case 'Terminated': return 'status-terminated';
-      default: return '';
-    }
-  };
-
-  const getSourceColor = (source) => {
-    const colors = {
-      'Facebook': '#4267B2',
-      'WhatsApp': '#25D366',
-      'TikTok': '#000000',
-      'Reference': '#FFA500',
-      'Other': '#808080'
-    };
-    return colors[source] || '#808080';
   };
 
   return (
@@ -302,37 +242,6 @@ useEffect(() => {
                     }}
                   />
 
-                  <FormControl size="small" sx={{ minWidth: 120 }}>
-                    <InputLabel>Status</InputLabel>
-                    <Select
-                      value={filters.status}
-                      onChange={(e) => handleFilterChange('status', e.target.value)}
-                      label="Status"
-                    >
-                      <MenuItem value="">All</MenuItem>
-                      <MenuItem value="Active">Active</MenuItem>
-                      <MenuItem value="Inactive">Inactive</MenuItem>
-                      <MenuItem value="On Leave">On Leave</MenuItem>
-                      <MenuItem value="Terminated">Terminated</MenuItem>
-                    </Select>
-                  </FormControl>
-
-                  <FormControl size="small" sx={{ minWidth: 120 }}>
-                    <InputLabel>Source</InputLabel>
-                    <Select
-                      value={filters.source}
-                      onChange={(e) => handleFilterChange('source', e.target.value)}
-                      label="Source"
-                    >
-                      <MenuItem value="">All</MenuItem>
-                      <MenuItem value="Facebook">Facebook</MenuItem>
-                      <MenuItem value="WhatsApp">WhatsApp</MenuItem>
-                      <MenuItem value="TikTok">TikTok</MenuItem>
-                      <MenuItem value="Reference">Reference</MenuItem>
-                      <MenuItem value="Other">Other</MenuItem>
-                    </Select>
-                  </FormControl>
-
                   <DatePicker
                     label="From Date"
                     value={filters.fromDate}
@@ -355,7 +264,7 @@ useEffect(() => {
                     variant="outlined"
                     color="error"
                     onClick={resetFilters}
-                    startIcon={<FilterList />}
+                    startIcon={<Refresh />}
                   >
                     Reset Filters
                   </Button>
@@ -377,72 +286,48 @@ useEffect(() => {
                       <TableRow>
                         <TableCell className="table-header-cell">
                           <TableSortLabel
-                            active={sortConfig.field === 'employeeLeadId'}
+                            active={sortConfig.field === 'empId'}
                             direction={sortConfig.direction}
-                            onClick={() => handleSort('employeeLeadId')}
-                          >
-                            Lead ID
-                          </TableSortLabel>
-                        </TableCell>
-                        <TableCell className="table-header-cell">
-                          <TableSortLabel
-                            active={sortConfig.field === 'employeeId'}
-                            direction={sortConfig.direction}
-                            onClick={() => handleSort('employeeId')}
+                            onClick={() => handleSort('empId')}
                           >
                             Employee ID
                           </TableSortLabel>
                         </TableCell>
                         <TableCell className="table-header-cell">
                           <TableSortLabel
-                            active={sortConfig.field === 'employeeName'}
+                            active={sortConfig.field === 'empName'}
                             direction={sortConfig.direction}
-                            onClick={() => handleSort('employeeName')}
+                            onClick={() => handleSort('empName')}
                           >
                             Employee Name
                           </TableSortLabel>
                         </TableCell>
                         <TableCell className="table-header-cell">
+                          Phone No
+                        </TableCell>
+                        <TableCell className="table-header-cell">
                           <TableSortLabel
-                            active={sortConfig.field === 'customerName'}
+                            active={sortConfig.field === 'targetAmount'}
                             direction={sortConfig.direction}
-                            onClick={() => handleSort('customerName')}
+                            onClick={() => handleSort('targetAmount')}
                           >
-                            Customer Name
+                            Target Amount
                           </TableSortLabel>
                         </TableCell>
                         <TableCell className="table-header-cell">
                           <TableSortLabel
-                            active={sortConfig.field === 'customerId'}
+                            active={sortConfig.field === 'achievedAmount'}
                             direction={sortConfig.direction}
-                            onClick={() => handleSort('customerId')}
+                            onClick={() => handleSort('achievedAmount')}
                           >
-                            Customer ID
+                            Achieved Amount
                           </TableSortLabel>
                         </TableCell>
                         <TableCell className="table-header-cell">
                           <TableSortLabel
-                            active={sortConfig.field === 'status'}
+                            active={sortConfig.field === 'createdAt'}
                             direction={sortConfig.direction}
-                            onClick={() => handleSort('status')}
-                          >
-                            Status
-                          </TableSortLabel>
-                        </TableCell>
-                        <TableCell className="table-header-cell">
-                          <TableSortLabel
-                            active={sortConfig.field === 'source'}
-                            direction={sortConfig.direction}
-                            onClick={() => handleSort('source')}
-                          >
-                            Source
-                          </TableSortLabel>
-                        </TableCell>
-                        <TableCell className="table-header-cell">
-                          <TableSortLabel
-                            active={sortConfig.field === 'dateSource'}
-                            direction={sortConfig.direction}
-                            onClick={() => handleSort('dateSource')}
+                            onClick={() => handleSort('createdAt')}
                           >
                             Date Added
                           </TableSortLabel>
@@ -453,46 +338,22 @@ useEffect(() => {
                     <TableBody>
                       {loading ? (
                         <TableRow>
-                          <TableCell colSpan={9} align="center">Loading...</TableCell>
+                          <TableCell colSpan={7} align="center">Loading...</TableCell>
                         </TableRow>
                       ) : employees.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={9} align="center">No employees found</TableCell>
+                          <TableCell colSpan={7} align="center">No employees found</TableCell>
                         </TableRow>
                       ) : (
                         employees.map((employee) => (
                           <TableRow key={employee._id} hover className="table-row">
-                            <TableCell>{employee.employeeLeadId}</TableCell>
-                            <TableCell>{employee.employeeId}</TableCell>
-                            <TableCell>{employee.employeeName}</TableCell>
-                            <TableCell>{employee.customerName}</TableCell>
-                            <TableCell>{employee.customerId}</TableCell>
+                            <TableCell>{employee.empId}</TableCell>
+                            <TableCell>{employee.empName}</TableCell>
+                            <TableCell>{employee.phoneNo}</TableCell>
+                            <TableCell>${employee.targetAmount.toLocaleString()}</TableCell>
+                            <TableCell>${employee.achievedAmount.toLocaleString()}</TableCell>
                             <TableCell>
-                              <Chip
-                                label={employee.status}
-                                className={`status-chip ${getStatusColor(employee.status)}`}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Box
-                                sx={{
-                                  backgroundColor: getSourceColor(employee.source),
-                                  color: 'white',
-                                  borderRadius: '16px',
-                                  padding: '4px 12px',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  minWidth: '80px',
-                                  fontSize: '0.8125rem',
-                                  fontWeight: 500
-                                }}
-                              >
-                                {employee.source}
-                              </Box>
-                            </TableCell>
-                            <TableCell>
-                              {new Date(employee.dateSource).toLocaleDateString('en-US', {
+                              {new Date(employee.createdAt).toLocaleDateString('en-US', {
                                 year: 'numeric',
                                 month: 'short',
                                 day: 'numeric'
@@ -539,35 +400,23 @@ useEffect(() => {
           <DialogContent className="dialog-content">
             <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
               <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Employee Lead ID"
-                    name="employeeLeadId"
-                    value={formData.employeeLeadId}
-                    onChange={handleInputChange}
-                    required
-                    margin="normal"
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    fullWidth
-                    label="Employee ID"
-                    name="employeeId"
-                    value={formData.employeeId}
-                    onChange={handleInputChange}
-                    required
-                    margin="normal"
-                    disabled={editingId !== null}
-                  />
-                </Grid>
+                {editingId && (
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      label="Employee ID"
+                      value={formData.empId || ''}
+                      margin="normal"
+                      disabled
+                    />
+                  </Grid>
+                )}
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
                     label="Employee Name"
-                    name="employeeName"
-                    value={formData.employeeName}
+                    name="empName"
+                    value={formData.empName}
                     onChange={handleInputChange}
                     required
                     margin="normal"
@@ -576,59 +425,38 @@ useEffect(() => {
                 <Grid item xs={12} sm={6}>
                   <TextField
                     fullWidth
-                    label="Customer Name"
-                    name="customerName"
-                    value={formData.customerName}
+                    label="Phone Number"
+                    name="phoneNo"
+                    value={formData.phoneNo}
                     onChange={handleInputChange}
-                    required
                     margin="normal"
                   />
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <TextField
                     fullWidth
-                    label="Customer ID"
-                    name="customerId"
-                    value={formData.customerId}
+                    label="Target Amount ($)"
+                    name="targetAmount"
+                    type="number"
+                    value={formData.targetAmount}
                     onChange={handleInputChange}
                     required
                     margin="normal"
+                    InputProps={{ inputProps: { min: 0 } }}
                   />
                 </Grid>
                 <Grid item xs={12} sm={6}>
-                  <FormControl fullWidth margin="normal">
-                    <InputLabel>Status</InputLabel>
-                    <Select
-                      name="status"
-                      value={formData.status}
-                      onChange={handleInputChange}
-                      label="Status"
-                      required
-                    >
-                      <MenuItem value="Active">Active</MenuItem>
-                      <MenuItem value="Inactive">Inactive</MenuItem>
-                      <MenuItem value="On Leave">On Leave</MenuItem>
-                      <MenuItem value="Terminated">Terminated</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <FormControl fullWidth margin="normal">
-                    <InputLabel>Source</InputLabel>
-                    <Select
-                      name="source"
-                      value={formData.source}
-                      onChange={handleInputChange}
-                      label="Source"
-                      required
-                    >
-                      <MenuItem value="Facebook">Facebook</MenuItem>
-                      <MenuItem value="WhatsApp">WhatsApp</MenuItem>
-                      <MenuItem value="Reference">Reference</MenuItem>
-                      <MenuItem value="TikTok">TikTok</MenuItem>
-                      <MenuItem value="Other">Other</MenuItem>
-                    </Select>
-                  </FormControl>
+                  <TextField
+                    fullWidth
+                    label="Achieved Amount ($)"
+                    name="achievedAmount"
+                    type="number"
+                    value={formData.achievedAmount}
+                    onChange={handleInputChange}
+                    required
+                    margin="normal"
+                    InputProps={{ inputProps: { min: 0 } }}
+                  />
                 </Grid>
               </Grid>
             </Box>
