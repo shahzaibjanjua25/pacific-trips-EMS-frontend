@@ -2,16 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import './customer.css';
 import {
-  Container, Typography, TextField, Button, Select, MenuItem,
+  Typography, TextField, Button, Select, MenuItem,
   Table, TableHead, TableRow, TableCell, TableBody, Dialog, DialogTitle,
-  DialogContent, DialogActions, Grid, InputLabel, FormControl, Box,
-  CircularProgress, TablePagination, Tooltip, IconButton
+  DialogContent, DialogActions, InputLabel, FormControl, Box,
+  CircularProgress, TablePagination, Tooltip, IconButton, Grid
 } from '@mui/material';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { Add, Edit, Delete } from '@mui/icons-material';
 
 function LeadManagement() {
+  // State
   const [leads, setLeads] = useState([]);
   const [filters, setFilters] = useState({
     search: '',
@@ -34,18 +35,20 @@ function LeadManagement() {
     source: 'Other'
   });
   const [openDialog, setOpenDialog] = useState(false);
+  const [amountDialogOpen, setAmountDialogOpen] = useState(false);
+  const [confirmationAmount, setConfirmationAmount] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
+  // Fetch leads
   const fetchLeads = async () => {
     setLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams();
-
       if (filters.search) params.append('search', filters.search);
       if (filters.status) params.append('status', filters.status);
       if (filters.source) params.append('source', filters.source);
@@ -53,15 +56,10 @@ function LeadManagement() {
       if (filters.toDate) params.append('toDate', filters.toDate.toISOString());
 
       const response = await fetch(`http://localhost:5000/api/leads?${params.toString()}`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      
       const data = await response.json();
-      if (data.success) {
-        setLeads(data.data || data); // Handle both response formats
-      } else {
-        throw new Error(data.message || 'Failed to fetch leads');
-      }
+      setLeads(data.data || data);
     } catch (err) {
       setError(err.message);
       console.error('Error fetching leads:', err);
@@ -70,60 +68,89 @@ function LeadManagement() {
     }
   };
 
-  const getStatusColor = (status) => {
-    const colors = {
-      'Paid': '#4caf50',
-      'Confirmed': '#4caf50',
-      'Pending': '#ff9800',
-      'Willing': '#2196f3',
-      'Lost': '#f44336',
-      'Refund': '#9e9e9e',
-      'Contacted': '#00bcd4'
-    };
-    return colors[status] || '#000000';
-  };
-
-  const getSourceColor = (source) => {
-    const colors = {
-      'Facebook': '#4267B2',
-      'WhatsApp': '#25D366',
-      'TikTok': '#000000',
-      'Reference': '#FFA500',
-      'Other': '#808080'
-    };
-    return colors[source] || '#808080';
-  };
-
   useEffect(() => {
     fetchLeads();
   }, [filters]);
 
-  const resetFilters = () => {
-    setFilters({
-      search: '',
-      status: '',
-      source: '',
-      fromDate: null,
-      toDate: null
-    });
+  // Handle confirmed status with amount
+  const handleConfirmedSubmit = async () => {
+    const parsedAmount = parseFloat(confirmationAmount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      setError('Please enter a valid positive amount');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Update lead status
+      const leadResponse = await fetch(`http://localhost:5000/api/leads/${editingId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...formData, status: 'confirmed' })
+      });
+
+      if (!leadResponse.ok) {
+        const errorData = await leadResponse.json();
+        throw new Error(errorData.message || 'Failed to update lead status');
+      }
+
+      // Update employee amount using empId
+      const employeeResponse = await fetch(`http://localhost:5000/api/employees/${formData.employeeId}/add-amount`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: parsedAmount })
+      });
+
+      const employeeData = await employeeResponse.json();
+      if (!employeeResponse.ok) {
+        throw new Error(employeeData.message || 'Failed to update employee amount');
+      }
+
+      // Success
+      setAmountDialogOpen(false);
+      setConfirmationAmount('');
+      fetchLeads();
+      setOpenDialog(false);
+      setEditingId(null);
+    } catch (err) {
+      setError(err.message);
+      console.error('Error confirming lead:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
+  // Status change handler
+  const handleStatusChange = (e) => {
+    if (e.target.value === 'confirmed') {
+      setAmountDialogOpen(true);
+      setFormData({...formData, status: 'Pending'});
+    } else {
+      setFormData({...formData, status: e.target.value});
+    }
+  };
+
+  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (formData.status === 'confirmed') {
+      setAmountDialogOpen(true);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
       const url = editingId
         ? `http://localhost:5000/api/leads/${editingId}`
         : 'http://localhost:5000/api/leads';
-
       const method = editingId ? 'PUT' : 'POST';
 
       const response = await fetch(url, {
         method,
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       });
 
@@ -146,6 +173,7 @@ function LeadManagement() {
     }
   };
 
+  // Edit lead
   const handleEdit = (lead) => {
     setFormData({
       employeeLeadId: lead.employeeLeadId,
@@ -164,6 +192,7 @@ function LeadManagement() {
     setOpenDialog(true);
   };
 
+  // Delete lead
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this lead?')) {
       try {
@@ -171,10 +200,7 @@ function LeadManagement() {
           method: 'DELETE'
         });
 
-        if (!response.ok) {
-          throw new Error('Failed to delete lead');
-        }
-
+        if (!response.ok) throw new Error('Failed to delete lead');
         fetchLeads();
       } catch (err) {
         setError(err.message);
@@ -183,6 +209,7 @@ function LeadManagement() {
     }
   };
 
+  // Reset form
   const resetForm = () => {
     setFormData({
       employeeLeadId: '',
@@ -200,15 +227,50 @@ function LeadManagement() {
     setEditingId(null);
   };
 
-  const handleChangePage = (event, newPage) => {
-    setPage(newPage);
+  // Reset filters
+  const resetFilters = () => {
+    setFilters({
+      search: '',
+      status: '',
+      source: '',
+      fromDate: null,
+      toDate: null
+    });
   };
 
+  // Pagination
+  const handleChangePage = (event, newPage) => setPage(newPage);
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
 
+  // Helper functions
+  const getStatusColor = (status) => {
+    const colors = {
+      'Paid': '#4caf50',
+      'confirmed': '#4caf50',
+      'Pending': '#ff9800',
+      'Willing': '#2196f3',
+      'Lost': '#f44336',
+      'refund': '#9e9e9e',
+      'Contacted': '#00bcd4'
+    };
+    return colors[status] || '#000000';
+  };
+
+  const getSourceColor = (source) => {
+    const colors = {
+      'Facebook': '#4267B2',
+      'WhatsApp': '#25D366',
+      'TikTok': '#000000',
+      'Reference': '#FFA500',
+      'Other': '#808080'
+    };
+    return colors[source] || '#808080';
+  };
+
+  // Filter leads
   const filteredLeads = leads.filter(lead =>
     lead.employeeName?.toLowerCase().includes(filters.search.toLowerCase()) ||
     lead.customerName?.toLowerCase().includes(filters.search.toLowerCase()) ||
@@ -223,11 +285,7 @@ function LeadManagement() {
           Lead Management
         </Typography>
 
-        {error && (
-          <div className="error-state">
-            {error}
-          </div>
-        )}
+        {error && <div className="error-state">{error}</div>}
 
         {/* Filters */}
         <div className="filter-section">
@@ -253,8 +311,8 @@ function LeadManagement() {
                 <MenuItem value="Lost">Lost</MenuItem>
                 <MenuItem value="Willing">Willing</MenuItem>
                 <MenuItem value="Paid">Paid</MenuItem>
-                <MenuItem value="Confirmed">Confirmed</MenuItem>
-                <MenuItem value="Refund">Refund</MenuItem>
+                <MenuItem value="confirmed">Confirmed</MenuItem>
+                <MenuItem value="refund">Refund</MenuItem>
               </Select>
             </FormControl>
 
@@ -299,10 +357,7 @@ function LeadManagement() {
             </Button>
 
             <Button
-              onClick={() => {
-                resetForm();
-                setOpenDialog(true);
-              }}
+              onClick={() => { resetForm(); setOpenDialog(true); }}
               variant="contained"
               disabled={loading}
               sx={{ height: '40px' }}
@@ -348,30 +403,23 @@ function LeadManagement() {
                       <TableCell>{lead.customerContactNo}</TableCell>
                       <TableCell>{lead.desiredDestination}</TableCell>
                       <TableCell>
-                        <Box
-                          sx={{
-                            color: getStatusColor(lead.status),
-                            fontWeight: 500
-                          }}
-                        >
+                        <Box sx={{ color: getStatusColor(lead.status), fontWeight: 500 }}>
                           {lead.status}
                         </Box>
                       </TableCell>
                       <TableCell>
-                        <Box
-                          sx={{
-                            backgroundColor: getSourceColor(lead.source),
-                            color: 'white',
-                            borderRadius: '16px',
-                            padding: '4px 12px',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            minWidth: '80px',
-                            fontSize: '0.8125rem',
-                            fontWeight: 500
-                          }}
-                        >
+                        <Box sx={{
+                          backgroundColor: getSourceColor(lead.source),
+                          color: 'white',
+                          borderRadius: '16px',
+                          padding: '4px 12px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          minWidth: '80px',
+                          fontSize: '0.8125rem',
+                          fontWeight: 500
+                        }}>
                           {lead.source}
                         </Box>
                       </TableCell>
@@ -411,19 +459,13 @@ function LeadManagement() {
         {/* Lead Form Dialog */}
         <Dialog
           open={openDialog}
-          onClose={() => {
-            setOpenDialog(false);
-            resetForm();
-          }}
+          onClose={() => { setOpenDialog(false); resetForm(); }}
           maxWidth="sm"
           fullWidth
-          className="customer-dialog"
         >
-          <DialogTitle className="customer-dialog-title">
-            {editingId ? 'Edit' : 'Add'} Lead
-          </DialogTitle>
-          <DialogContent className="customer-dialog-content">
-            <form onSubmit={handleSubmit} className="customer-form">
+          <DialogTitle>{editingId ? 'Edit' : 'Add'} Lead</DialogTitle>
+          <DialogContent>
+            <form onSubmit={handleSubmit}>
               <Grid container spacing={2} sx={{ mt: 1 }}>
                 <Grid item xs={12} sm={6}>
                   <TextField
@@ -523,7 +565,7 @@ function LeadManagement() {
                     <InputLabel>Status</InputLabel>
                     <Select
                       value={formData.status}
-                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                      onChange={handleStatusChange}
                       label="Status"
                       required
                     >
@@ -532,8 +574,8 @@ function LeadManagement() {
                       <MenuItem value="Lost">Lost</MenuItem>
                       <MenuItem value="Willing">Willing</MenuItem>
                       <MenuItem value="Paid">Paid</MenuItem>
-                      <MenuItem value="Confirmed">Confirmed</MenuItem>
-                      <MenuItem value="Refund">Refund</MenuItem>
+                      <MenuItem value="confirmed">Confirmed</MenuItem>
+                      <MenuItem value="refund">Refund</MenuItem>
                     </Select>
                   </FormControl>
                 </Grid>
@@ -557,22 +599,42 @@ function LeadManagement() {
               </Grid>
             </form>
           </DialogContent>
-          <DialogActions className="customer-dialog-actions">
-            <Button
-              onClick={() => {
-                setOpenDialog(false);
-                resetForm();
-              }}
-              disabled={loading}
-            >
+          <DialogActions>
+            <Button onClick={() => { setOpenDialog(false); resetForm(); }} disabled={loading}>
               Cancel
             </Button>
-            <Button
-              onClick={handleSubmit}
-              variant="contained"
+            <Button onClick={handleSubmit} variant="contained" disabled={loading}>
+              {loading ? <CircularProgress size={24} /> : 'Save'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Amount Confirmation Dialog */}
+        <Dialog open={amountDialogOpen} onClose={() => setAmountDialogOpen(false)}>
+          <DialogTitle>Confirm Lead Completion</DialogTitle>
+          <DialogContent>
+            <TextField
+              autoFocus
+              margin="dense"
+              label="Amount (Rs.)"
+              type="number"
+              fullWidth
+              value={confirmationAmount}
+              onChange={(e) => setConfirmationAmount(e.target.value)}
+              InputProps={{ inputProps: { min: 1 } }}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setAmountDialogOpen(false)} disabled={loading}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleConfirmedSubmit} 
+              variant="contained" 
+              color="primary"
               disabled={loading}
             >
-              {loading ? <CircularProgress size={24} /> : 'Save'}
+              {loading ? <CircularProgress size={24} /> : 'Confirm'}
             </Button>
           </DialogActions>
         </Dialog>
